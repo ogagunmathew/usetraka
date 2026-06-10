@@ -5,11 +5,15 @@ interface BadgeProps {
   color?: string
 }
 
-export function Badge({ label, color = '#6c757d' }: BadgeProps) {
+export function Badge({ label, color = '#64748b' }: BadgeProps) {
   return (
     <span
-      className="inline-block px-2 py-0.5 rounded text-xs font-semibold text-white"
-      style={{ backgroundColor: color }}
+      className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap"
+      style={{
+        background: `${color}1a`,
+        color: color,
+        border: `1px solid ${color}40`,
+      }}
     >
       {label}
     </span>

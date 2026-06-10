@@ -1,20 +1,18 @@
 export type EventStatus = 'Registered' | 'Interested' | 'Considering' | 'Attended' | 'Declined'
 
 export type EventCategory =
-  | 'Tech/Startup'
-  | 'Tech/Policy'
-  | 'Investment'
-  | 'Leadership'
-  | 'Product/UX'
-  | 'Networking'
+  | 'Tech'
   | 'Fintech'
-  | 'Policy'
+  | 'Creative'
+  | 'Tech Expo'
+  | 'Investments'
   | 'Other'
 
 export interface LagosEvent {
   id: string
   name: string
   category: EventCategory
+  city: string | null
   event_date: string | null
   event_day: string | null
   event_time: string | null
@@ -41,7 +39,8 @@ export interface Reminder {
 }
 
 export interface SearchFilters {
-  category?: string
+  categories: string[]
+  cities: string[]
   timeframe?: string
   budget?: string
   keywords?: string

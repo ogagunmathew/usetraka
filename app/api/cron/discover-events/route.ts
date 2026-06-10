@@ -13,13 +13,29 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const prompt = `Search for professional events happening in Lagos, Nigeria in the next 3 months.
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+    const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    const end = new Date(now)
+    end.setMonth(end.getMonth() + 3)
+
+    const prompt = `Today's date is ${fmt(now)} (${today}).
+
+Search for professional events in Lagos, Nigeria from today until ${fmt(end)}.
 Focus on: tech, startups, investment, fintech, networking, leadership, product, policy, digital transformation.
-Return ONLY a JSON array (no markdown) of 10-15 events with this schema:
-[{"name":"","category":"Tech/Startup|Investment|Networking|Leadership|Product/UX|Fintech|Policy|Tech/Policy|Other","date":"DD-MMM-YY","day":"","time":"","venue":"","area":"","organiser":"","cost":"Free|₦X","link":"","description":""}]`
+Target audience: tech leaders, startup founders, investors, digital transformation consultants, fintech professionals.
+
+STRICT RULES — you must follow these exactly:
+1. Only include events with a CONFIRMED specific date — day, month, AND year all known. If the exact date is uncertain, skip the event entirely.
+2. Only include events happening AFTER today (${today}). Do NOT include past events.
+3. Dates MUST be in YYYY-MM-DD format (e.g. ${today}). Any other format is wrong.
+4. Return 10–15 events. If fewer confirmed upcoming events exist, return only those.
+
+Return ONLY a valid JSON array (no markdown, no extra text):
+[{"name":"","category":"Tech/Startup|Investment|Networking|Leadership|Product/UX|Fintech|Policy|Tech/Policy|Other","date":"YYYY-MM-DD","day":"","time":"","venue":"","area":"","organiser":"","cost":"Free|₦X","link":"","description":""}]`
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       tools: [{ type: 'web_search_20250305' as never, name: 'web_search' }],
       messages: [{ role: 'user', content: prompt }],
@@ -32,8 +48,14 @@ Return ONLY a JSON array (no markdown) of 10-15 events with this schema:
     jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const arrayStart = jsonText.indexOf('[')
     const arrayEnd = jsonText.lastIndexOf(']')
-    if (arrayStart === -1) throw new Error('No JSON array in response')
-    const events = JSON.parse(jsonText.slice(arrayStart, arrayEnd + 1))
+    if (arrayStart === -1 || arrayEnd === -1) throw new Error('No JSON array in Claude response')
+    let events
+    try {
+      events = JSON.parse(jsonText.slice(arrayStart, arrayEnd + 1))
+    } catch (parseErr) {
+      throw new Error(`JSON parse failed: ${parseErr}`)
+    }
+    if (!Array.isArray(events)) throw new Error('Claude response was not an array')
 
     let newCount = 0
     for (const event of events) {

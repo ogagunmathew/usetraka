@@ -75,10 +75,10 @@ export function Tracker({ refreshKey }: TrackerProps) {
       {/* Stats bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: stats.total, color: 'var(--text-muted)' },
-          { label: 'Registered', value: stats.registered, color: '#28a745' },
-          { label: 'Interested', value: stats.interested, color: '#0d6efd' },
-          { label: 'Attended', value: stats.attended, color: '#6f42c1' },
+          { label: 'Total',      value: stats.total,      color: 'var(--text-muted)' },
+          { label: 'Registered', value: stats.registered, color: '#10b981' },
+          { label: 'Interested', value: stats.interested, color: '#4f8ef7' },
+          { label: 'Attended',   value: stats.attended,   color: '#a855f7' },
         ].map((s) => (
           <div key={s.label} className="rounded-xl p-4 text-center"
                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>

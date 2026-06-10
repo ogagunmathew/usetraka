@@ -1,13 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0f0f1a;
-  --surface: #1a1a2e;
-  --surface2: #16213e;
-  --accent: #e94560;
-  --text: #e8e8f0;
-  --text-muted: #8888aa;
-  --border: #2a2a4a;
+  --bg: #080c18;
+  --surface: #0d1526;
+  --surface2: #111e35;
+  --surface3: #162240;
+  --accent: #4f8ef7;
+  --accent-dim: rgba(79, 142, 247, 0.1);
+  --accent-border: rgba(79, 142, 247, 0.28);
+  --text: #dde6f7;
+  --text-muted: #6b7fa8;
+  --border: #1c2a4a;
 }
 
 body {
@@ -16,10 +19,47 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-* {
-  box-sizing: border-box;
+* { box-sizing: border-box; }
+
+/* Ambient glow at the top of every page */
+body::before {
+  content: '';
+  position: fixed;
+  top: -180px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 420px;
+  background: radial-gradient(ellipse at center, rgba(79,142,247,0.07) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
+/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--surface); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-border); }
+
+/* Card hover lift */
+.event-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.event-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-border) !important;
+  box-shadow: 0 12px 40px rgba(79, 142, 247, 0.1);
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Select options inherit surface background */
+select option { background: var(--surface2); color: var(--text); }
+
+/* Smooth transitions on interactive elements */
+button, a, select, input { transition-property: color, background-color, border-color, box-shadow, opacity, transform; transition-duration: 0.15s; transition-timing-function: ease; }

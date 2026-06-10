@@ -11,7 +11,7 @@ interface AddEventModalProps {
 
 export function AddEventModal({ onClose, onSaved }: AddEventModalProps) {
   const [form, setForm] = useState({
-    name: '', category: 'Tech/Startup', event_date: '', event_day: '',
+    name: '', category: 'Tech', event_date: '', event_day: '',
     event_time: '', venue: '', area: '', organiser: '', cost: '',
     link: '', description: '', status: 'Interested',
   })
