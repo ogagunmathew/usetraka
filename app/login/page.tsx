@@ -74,7 +74,7 @@ function LoginForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({ error: `Server error (${res.status})` }))
       if (!res.ok) {
         if (data.requiresVerification) {
           router.push(`/verify?email=${encodeURIComponent(data.email)}`)

@@ -72,7 +72,7 @@ export default function SignupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({ error: `Server error (${res.status})` }))
       if (!res.ok) { setError(data.error || 'Signup failed'); return }
       router.push(`/verify?email=${encodeURIComponent(email.trim().toLowerCase())}`)
       router.refresh()

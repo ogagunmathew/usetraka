@@ -7,6 +7,7 @@ import { Resend } from 'resend'
 function getResend() { return new Resend(process.env.RESEND_API_KEY || 'placeholder') }
 
 export async function POST(req: NextRequest) {
+  try {
   const { name, email, password } = await req.json()
 
   if (!name || !email || !password) {
@@ -65,4 +66,8 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, requiresVerification: true })
+  } catch (err) {
+    console.error('Signup error:', err)
+    return NextResponse.json({ error: 'Something went wrong — please try again' }, { status: 500 })
+  }
 }
