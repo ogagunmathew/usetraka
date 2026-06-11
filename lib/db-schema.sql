@@ -1,4 +1,4 @@
--- Eventraka — PostgreSQL Schema
+-- Traka — PostgreSQL Schema
 -- Run this against your Railway PostgreSQL instance (pgAdmin or psql)
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   plan              TEXT        NOT NULL DEFAULT 'trial',
   plan_expires_at   TIMESTAMPTZ,
   trial_started_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  status            TEXT        NOT NULL DEFAULT 'active',
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -112,12 +113,85 @@ CREATE INDEX IF NOT EXISTS idx_search_usage_user  ON search_usage(user_id, searc
 CREATE INDEX IF NOT EXISTS idx_search_cache_ts    ON search_cache(created_at);
 CREATE INDEX IF NOT EXISTS idx_verif_tokens_user  ON verification_tokens(user_id);
 
+-- ─── Opportunities (user-saved) ───────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS opportunities (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title            TEXT        NOT NULL,
+  category         TEXT        NOT NULL,
+  organiser        TEXT,
+  deadline         DATE,
+  funding_amount   TEXT,
+  eligibility      TEXT,
+  description      TEXT,
+  application_url  TEXT,
+  country          TEXT,
+  status           TEXT        NOT NULL DEFAULT 'Saved',
+  source           TEXT        NOT NULL DEFAULT 'ai_search',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Opportunity Reminders ────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS opportunity_reminders (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  opp_id      UUID        NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+  remind_at   TIMESTAMPTZ NOT NULL,
+  channel     TEXT        NOT NULL DEFAULT 'email',
+  sent        BOOLEAN     NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Opportunity Pool (globally discovered, shared) ───────────────────────────
+
+CREATE TABLE IF NOT EXISTS opportunity_pool (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  title            TEXT        NOT NULL,
+  category         TEXT        NOT NULL,
+  organiser        TEXT,
+  deadline         DATE,
+  funding_amount   TEXT,
+  eligibility      TEXT,
+  description      TEXT,
+  application_url  TEXT,
+  country          TEXT,
+  source           TEXT        NOT NULL DEFAULT 'ai_discovery',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER opportunities_updated_at
+  BEFORE UPDATE ON opportunities
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE INDEX IF NOT EXISTS idx_opportunities_user    ON opportunities(user_id);
+CREATE INDEX IF NOT EXISTS idx_opportunities_status  ON opportunities(status);
+CREATE INDEX IF NOT EXISTS idx_opportunities_cat     ON opportunities(category);
+CREATE INDEX IF NOT EXISTS idx_opp_reminders_due     ON opportunity_reminders(remind_at) WHERE sent = false;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_opp_pool_dedup ON opportunity_pool(lower(title), deadline);
+
+-- ─── Plan Config (admin-editable, reflects on pricing page) ──────────────────
+
+CREATE TABLE IF NOT EXISTS plan_config (
+  key         TEXT        PRIMARY KEY,
+  label       TEXT        NOT NULL,
+  price_kobo  INTEGER     NOT NULL,
+  months      INTEGER     NOT NULL,
+  features    JSONB       NOT NULL DEFAULT '[]',
+  highlighted BOOLEAN     NOT NULL DEFAULT false,
+  tag         TEXT,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ─── Migrations: run these if upgrading an existing database ──────────────────
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified   BOOLEAN     NOT NULL DEFAULT false;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS plan             TEXT        NOT NULL DEFAULT 'trial';
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_expires_at  TIMESTAMPTZ;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ NOT NULL DEFAULT now();
 -- ALTER TABLE events ADD COLUMN IF NOT EXISTS city            TEXT;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS status           TEXT NOT NULL DEFAULT 'active';
 
 -- CREATE TABLE IF NOT EXISTS verification_tokens (
 --   token       TEXT        PRIMARY KEY,

@@ -18,7 +18,7 @@ function buildReminderEmail(params: {
   daysUntil: number
 }) {
   const { userName, eventName, eventDate, eventTime, venue, area, city, cost, link, description, daysUntil } = params
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://eventraka.com'
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://usetraka.com'
 
   const dateStr = new Date(eventDate).toLocaleDateString('en-NG', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -32,7 +32,7 @@ function buildReminderEmail(params: {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Event Reminder — Eventraka</title>
+  <title>Event Reminder — Traka</title>
 </head>
 <body style="margin:0;padding:0;background:#f0f4fd;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:580px;margin:0 auto;padding:32px 16px 48px;">
@@ -40,7 +40,7 @@ function buildReminderEmail(params: {
     <!-- Header -->
     <div style="background:#080c18;border-radius:14px 14px 0 0;padding:28px 36px;text-align:center;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:400px;height:200px;background:radial-gradient(ellipse,rgba(79,142,247,0.25) 0%,transparent 65%);pointer-events:none;"></div>
-      <p style="margin:0 0 4px;font-size:22px;font-weight:900;color:#4f8ef7;letter-spacing:-0.03em;position:relative;">Eventraka</p>
+      <p style="margin:0 0 4px;font-size:22px;font-weight:900;color:#4f8ef7;letter-spacing:-0.03em;position:relative;">Traka</p>
       <p style="margin:0;font-size:11px;font-weight:700;color:#3d5280;letter-spacing:0.12em;text-transform:uppercase;position:relative;">Nigeria Event Intelligence</p>
     </div>
 
@@ -55,7 +55,7 @@ function buildReminderEmail(params: {
         Hi <strong>${userName.split(' ')[0]}</strong>,
       </p>
       <p style="margin:0 0 28px;font-size:15px;color:#6b7280;line-height:1.6;">
-        You saved an event to your Eventraka tracker. Here&apos;s your reminder:
+        You saved an event to your Traka tracker. Here&apos;s your reminder:
       </p>
 
       <!-- Event card -->
@@ -87,7 +87,7 @@ function buildReminderEmail(params: {
         : ''}
 
       <a href="${APP_URL}/app" style="display:block;text-align:center;background:#f0f4fd;color:#4f8ef7;text-decoration:none;padding:11px 24px;border-radius:10px;font-size:14px;font-weight:600;border:1px solid #dde6f7;">
-        Open Eventraka Tracker
+        Open Traka Tracker
       </a>
     </div>
 
@@ -95,7 +95,7 @@ function buildReminderEmail(params: {
     <div style="background:#f0f4fd;border:1px solid #dde6f7;border-top:none;border-radius:0 0 14px 14px;padding:20px 36px;text-align:center;">
       <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.7;">
         You&apos;re receiving this because you saved this event on
-        <a href="${APP_URL}" style="color:#4f8ef7;text-decoration:none;">Eventraka</a>.<br>
+        <a href="${APP_URL}" style="color:#4f8ef7;text-decoration:none;">Traka</a>.<br>
         <a href="${APP_URL}/app" style="color:#9ca3af;text-decoration:underline;">Manage your reminders</a>
       </p>
     </div>
@@ -149,9 +149,9 @@ export async function GET(req: NextRequest) {
 
       try {
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'reminders@eventraka.com',
+          from: process.env.RESEND_FROM_EMAIL || 'reminders@usetraka.com',
           to: row.user_email,
-          subject: `Reminder: "${row.name}" is ${daysUntil <= 1 ? 'tomorrow' : `in ${daysUntil} days`}`,
+          subject: `Traka Reminder: "${row.name}" is ${daysUntil <= 1 ? 'tomorrow' : `in ${daysUntil} days`}`,
           html: buildReminderEmail({
             userName: row.user_name,
             eventName: row.name,

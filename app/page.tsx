@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import Image from 'next/image'
-import { ArrowRight, Search, Bell, Calendar, MapPin, Clock, Check, Filter, Zap } from 'lucide-react'
+import { ArrowRight, Search, Bell, Calendar, MapPin, Clock, Check, Filter, Zap, Globe } from 'lucide-react'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { Logo } from '@/components/ui/logo'
 
 export const metadata: Metadata = {
-  title: 'Eventraka — Nigeria Event Intelligence',
-  description: 'AI-powered event discovery across Lagos, Abuja, Port Harcourt, and 3 more Nigerian cities. Find Tech, Fintech, and professional events worth attending.',
+  title: 'Traka — Nigeria Event & Opportunity Intelligence',
+  description: 'AI-powered discovery of events across Nigerian cities and global opportunities open to Nigerians — grants, scholarships, accelerators, and tenders.',
 }
 
 const MOCK_EVENTS = [
@@ -18,27 +19,27 @@ const STEPS = [
   {
     n: '01',
     title: 'Search',
-    body: 'Pick your city, category, and timeframe. Eventraka runs a live AI search — not a database someone last updated in January.',
+    body: 'Pick your filters — city and category for events, region and type for opportunities. Traka runs a live AI search, not a database someone last updated in January.',
   },
   {
     n: '02',
     title: 'Save',
-    body: 'One click adds any event to your personal tracker. Mark it Interested, Attending, or Attended as things develop.',
+    body: 'One click adds anything to your personal tracker. Mark events as Interested, Attending, or Attended. Track opportunities from Saved through to Applied and Awarded.',
   },
   {
     n: '03',
-    title: 'Show up',
-    body: 'You get an email 7 days before every tracked event. Add to Google Calendar and you\'re done.',
+    title: 'Never miss it',
+    body: 'Get an email reminder 7 days before every event and every opportunity deadline. You\'ll stop finding out after the window closed.',
   },
 ]
 
 const FEATURES = [
-  { icon: Zap, title: 'Live AI search', body: 'Claude searches the web for upcoming events in real time. No stale listings, no manual curation.' },
-  { icon: MapPin, title: '6 cities at once', body: 'Lagos, Abuja, Port Harcourt, Kano, Abeokuta, Ilorin. Filter any combination in a single search.' },
-  { icon: Filter, title: 'Five focused categories', body: 'Tech, Fintech, Creative, Tech Expos, Investments. Every category that actually moves careers.' },
-  { icon: Clock, title: 'Personal event tracker', body: 'Save events, update your attendance status, keep a record of what you\'ve been to.' },
-  { icon: Bell, title: '7-day reminders', body: 'An email lands a week before each tracked event. You\'ll stop forgetting things you saved.' },
-  { icon: Calendar, title: 'Google Calendar sync', body: 'Add any event directly from the tracker to your calendar. One click, no copy-pasting.' },
+  { icon: Zap, title: 'Live AI event search', body: 'Claude searches the web for upcoming events in real time across 6 Nigerian cities. No stale listings, no manual curation.' },
+  { icon: Globe, title: 'Global opportunity search', body: 'Find grants, scholarships, accelerators, and tenders from anywhere in the world — filtered to what Nigerians are eligible for.' },
+  { icon: MapPin, title: '6 Nigerian cities', body: 'Lagos, Abuja, Port Harcourt, Kano, Abeokuta, Ilorin. Filter any combination in a single events search.' },
+  { icon: Filter, title: '5 opportunity categories', body: 'Grants, Scholarships, Incubators, Accelerators, and Tenders — the opportunities that actually matter for your career or business.' },
+  { icon: Bell, title: 'Deadline & event reminders', body: 'An email lands 7 days before each tracked event date or opportunity deadline. You\'ll stop missing things you saved.' },
+  { icon: Calendar, title: 'Personal tracker', body: 'Save events and opportunities, update status, export to CSV, and add events to Google Calendar — all in one place.' },
 ]
 
 const PLANS_PREVIEW = [
@@ -56,15 +57,16 @@ export default function LandingPage() {
       <nav style={{
         position: 'sticky', top: 0, zIndex: 50,
         borderBottom: '1px solid var(--border)',
-        background: 'rgba(8,12,24,0.92)',
+        background: 'var(--nav-bg)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1.5rem', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/">
-            <Image src="/logo.png" alt="Eventraka" width={130} height={34} unoptimized priority style={{ objectFit: 'contain', display: 'block' }} />
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <Logo size="md" />
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <ThemeToggle />
             <Link href="/login" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textDecoration: 'none', padding: '0.4rem 0.75rem', borderRadius: '8px' }}
               className="hover-muted">
               Sign in
@@ -85,16 +87,16 @@ export default function LandingPage() {
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--accent)', background: 'var(--accent-dim)', border: '1px solid var(--accent-border)', padding: '0.3rem 0.75rem', borderRadius: '999px', marginBottom: '1.5rem' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} />
-              Nigeria-wide · 6 cities
+              Events · Opportunities · Built for Nigerians
             </div>
 
             <h1 style={{ fontSize: 'clamp(2.25rem, 4.5vw, 3.75rem)', fontWeight: 900, lineHeight: 1.08, letterSpacing: '-0.04em', margin: '0 0 1.25rem', color: 'var(--text)' }}>
-              Stop finding out about the event{' '}
-              <span style={{ color: 'var(--accent)' }}>after it happened.</span>
+              Stop missing things{' '}
+              <span style={{ color: 'var(--accent)' }}>built for you.</span>
             </h1>
 
             <p style={{ fontSize: 'clamp(1rem, 1.5vw, 1.125rem)', color: 'var(--text-muted)', lineHeight: 1.7, margin: '0 0 2.25rem', maxWidth: '520px' }}>
-              Eventraka uses AI to surface professional events across Lagos, Abuja, Port Harcourt, and 3 more cities — Tech, Fintech, Creative, Expos, and Investments — before the invite link expires.
+              Traka uses AI to surface professional events across 6 Nigerian cities, and global opportunities — grants, scholarships, accelerators, tenders — that Nigerians are eligible for. All in one place, before the deadline closes.
             </p>
 
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
@@ -129,7 +131,7 @@ export default function LandingPage() {
               border: '1px solid var(--border)',
               borderRadius: '16px',
               overflow: 'hidden',
-              boxShadow: '0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(79,142,247,0.08)',
+              boxShadow: 'var(--shadow-card)',
             }}>
               {/* Title bar */}
               <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -297,13 +299,13 @@ export default function LandingPage() {
       {/* ── Who it's for ── */}
       <section style={{ maxWidth: '900px', margin: '0 auto', padding: '6rem 1.5rem', textAlign: 'center' }}>
         <p style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: '0.75rem' }}>
-          Who uses Eventraka
+          Who uses Traka
         </p>
         <h2 style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', fontWeight: 900, letterSpacing: '-0.03em', marginBottom: '2.5rem' }}>
-          If you&apos;re building, investing, or leading in Nigeria&apos;s tech ecosystem — this is for you.
+          If you&apos;re building, funding, or growing in Nigeria — events and opportunities find you here.
         </h2>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.625rem' }}>
-          {['Startup Founders', 'Tech Leads', 'VCs & Angel Investors', 'Digital Transformation Consultants', 'Fintech Professionals', 'Creative Directors', 'Product Managers', 'DevRel & Community Leads'].map(r => (
+          {['Startup Founders', 'Tech Leads', 'VCs & Angel Investors', 'Digital Transformation Consultants', 'Fintech Professionals', 'Creative Directors', 'Product Managers', 'Students & Early-Career Professionals', 'NGO Leaders', 'SME Owners'].map(r => (
             <span key={r} style={{
               fontSize: '0.875rem', fontWeight: 500, padding: '0.45rem 1rem', borderRadius: '999px',
               background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)',
@@ -370,11 +372,11 @@ export default function LandingPage() {
       {/* ── Final CTA ── */}
       <section style={{ maxWidth: '700px', margin: '0 auto', padding: '7rem 1.5rem', textAlign: 'center' }}>
         <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, marginBottom: '1.25rem' }}>
-          You&apos;ve been meaning to{' '}
-          <span style={{ color: 'var(--accent)' }}>go to more events.</span>
+          The events and opportunities{' '}
+          <span style={{ color: 'var(--accent)' }}>you should know about.</span>
         </h2>
         <p style={{ fontSize: '1rem', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: '2.5rem' }}>
-          Start here. It takes 60 seconds to sign up and your first 7 days are free.
+          Sign up in 60 seconds. Your first 7 days are free — search for events and opportunities, save what matters, and get reminded before it&apos;s too late.
         </p>
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link href="/signup" style={{
@@ -394,7 +396,7 @@ export default function LandingPage() {
       <footer style={{ borderTop: '1px solid var(--border)', padding: '2rem 1.5rem' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Image src="/logo.png" alt="Eventraka" width={100} height={26} unoptimized style={{ objectFit: 'contain' }} />
+            <Logo size="sm" />
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>© 2026</span>
           </div>
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>

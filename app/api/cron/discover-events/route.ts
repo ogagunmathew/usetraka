@@ -95,8 +95,8 @@ Return ONLY a valid JSON array (no markdown, no extra text):
       await getResend().emails.send({
         from: process.env.RESEND_FROM_EMAIL || 'reminders@ashiri.ng',
         to: process.env.REMINDER_EMAIL,
-        subject: `📅 Lagos Events Weekly Digest — ${new Date().toDateString()}`,
-        html: `<h2>Weekly Lagos Events Digest</h2>
+        subject: `📅 Traka Weekly Events Digest — ${new Date().toDateString()}`,
+        html: `<h2>Weekly Events Digest — Traka</h2>
                <p><strong>${newCount} new events</strong> discovered this week.</p>
                <h3>Upcoming (next 14 days)</h3>
                <ul>${upcomingHtml || '<li>None</li>'}</ul>

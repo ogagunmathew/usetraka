@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   const normalizedEmail = email.trim().toLowerCase()
   const result = await pool.query(
-    'SELECT id, email, name, password_hash, email_verified FROM users WHERE email = $1',
+    'SELECT id, email, name, password_hash, email_verified, status FROM users WHERE email = $1',
     [normalizedEmail]
   )
 
@@ -24,6 +24,13 @@ export async function POST(req: NextRequest) {
   const valid = await bcrypt.compare(password, user.password_hash)
   if (!valid) {
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+  }
+
+  if (user.status === 'suspended') {
+    return NextResponse.json(
+      { error: 'Your account has been suspended. Contact support at hello@usetraka.com.' },
+      { status: 403 }
+    )
   }
 
   if (!user.email_verified) {

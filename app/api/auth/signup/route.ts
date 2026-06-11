@@ -47,10 +47,10 @@ export async function POST(req: NextRequest) {
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
       to: normalizedEmail,
-      subject: 'Verify your Eventraka account',
+      subject: 'Verify your Traka account',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-          <h2 style="color:#4f8ef7;margin:0 0 8px">Welcome to Eventraka, ${name.trim()}!</h2>
+          <h2 style="color:#4f8ef7;margin:0 0 8px">Welcome to Traka, ${name.trim()}!</h2>
           <p style="color:#666;margin:0 0 24px">You're one step away. Verify your email to start discovering professional events across Nigeria.</p>
           <a href="${verifyUrl}"
              style="display:inline-block;background:#4f8ef7;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">

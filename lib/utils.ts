@@ -40,6 +40,26 @@ export const ALL_CATEGORIES: string[] = [
   'Tech', 'Fintech', 'Creative', 'Tech Expo', 'Investments', 'Other',
 ]
 
+export const OPP_CATEGORY_COLORS: Record<string, string> = {
+  'Grant':        '#10b981',
+  'Scholarship':  '#8b5cf6',
+  'Incubator':    '#4f8ef7',
+  'Accelerator':  '#0ea5e9',
+  'Tender':       '#f59e0b',
+}
+
+export const ALL_OPP_CATEGORIES = ['Grant', 'Scholarship', 'Incubator', 'Accelerator', 'Tender'] as const
+
+export const ALL_OPP_REGIONS = ['Africa', 'Global', 'UK/Europe', 'US/Canada', 'Nigeria'] as const
+
+export const OPP_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  Saved:       { bg: 'bg-blue-900/30',    text: 'text-blue-400' },
+  Applied:     { bg: 'bg-emerald-900/30', text: 'text-emerald-400' },
+  Considering: { bg: 'bg-amber-900/30',   text: 'text-amber-400' },
+  Awarded:     { bg: 'bg-purple-900/30',  text: 'text-purple-400' },
+  Declined:    { bg: 'bg-slate-800/60',   text: 'text-slate-400' },
+}
+
 export function buildGoogleCalendarUrl(event: LagosEvent): string {
   const params = new URLSearchParams()
   params.set('action', 'TEMPLATE')

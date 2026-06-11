@@ -2,19 +2,15 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Check } from 'lucide-react'
-import { PLANS, TRIAL_DAYS, TRIAL_SEARCHES } from '@/lib/plans'
+import { TRIAL_DAYS, TRIAL_SEARCHES } from '@/lib/plans'
+import { Logo } from '@/components/ui/logo'
 
-const FEATURES = [
-  'AI-powered event search across Nigeria',
-  '6 cities — Lagos, Abuja, PH, Kano, Abeokuta, Ilorin',
-  'Tech, Fintech, Creative, Tech Expo & Investments',
-  'Event tracker with status management',
-  '7-day email reminders',
-  'Add to Google Calendar',
-]
+interface PlanConfig {
+  key: string; label: string; price_kobo: number; months: number
+  features: string[]; highlighted: boolean; tag: string | null
+}
 
 interface UserPlan {
   plan: string
@@ -31,10 +27,12 @@ function PricingContent() {
   const paymentStatus = searchParams.get('payment')
 
   const [userPlan, setUserPlan] = useState<UserPlan | null>(null)
+  const [planConfigs, setPlanConfigs] = useState<PlanConfig[]>([])
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/payments/plan').then(r => r.ok ? r.json() : null).then(d => d && setUserPlan(d))
+    fetch('/api/plans').then(r => r.ok ? r.json() : null).then(d => d?.plans && setPlanConfigs(d.plans))
   }, [])
 
   async function handleSubscribe(planId: string) {
@@ -59,51 +57,40 @@ function PricingContent() {
   const isTrialExpired = userPlan?.plan === 'trial' && userPlan?.status === 'expired'
   const searchesLeft = userPlan ? userPlan.usage.limit - userPlan.usage.used : TRIAL_SEARCHES
 
-  const allCards = [
-    {
-      id: 'trial',
-      name: 'Free Trial',
-      price: 'Free',
-      sub: `${TRIAL_DAYS} days · ${TRIAL_SEARCHES} searches`,
-      tag: null,
-      highlight: false,
-      features: ['Full feature access', `${TRIAL_SEARCHES} event searches total`, `${TRIAL_DAYS}-day access`, 'No credit card required'],
-    },
-    {
-      id: 'starter',
-      name: PLANS.starter.name,
-      price: PLANS.starter.display,
-      sub: `${PLANS.starter.months} months · ${PLANS.starter.perMonth}`,
-      tag: null,
-      highlight: false,
-      features: [...FEATURES, '100 searches / month'],
-    },
-    {
-      id: 'growth',
-      name: PLANS.growth.name,
-      price: PLANS.growth.display,
-      sub: `${PLANS.growth.months} months · ${PLANS.growth.perMonth}`,
-      tag: 'Most Popular',
-      highlight: true,
-      features: [...FEATURES, '100 searches / month', PLANS.growth.savings!],
-    },
-    {
-      id: 'annual',
-      name: PLANS.annual.name,
-      price: PLANS.annual.display,
-      sub: `${PLANS.annual.months} months · ${PLANS.annual.perMonth}`,
-      tag: 'Best Value',
-      highlight: false,
-      features: [...FEATURES, '100 searches / month', PLANS.annual.savings!],
-    },
-  ]
+  const trialCard = {
+    id: 'trial', name: 'Free Trial', price: 'Free',
+    sub: `${TRIAL_DAYS} days · ${TRIAL_SEARCHES} searches`,
+    tag: null, highlight: false,
+    features: [
+      'Events + Opportunities search',
+      `${TRIAL_SEARCHES} searches (events & opportunities)`,
+      `${TRIAL_DAYS}-day access · all features unlocked`,
+      'No credit card required',
+    ],
+    priceKobo: 0,
+  }
+
+  const paidCards = planConfigs.map(p => {
+    const naira = Math.round(p.price_kobo / 100)
+    const perMonth = Math.round(naira / p.months)
+    return {
+      id: p.key, name: p.label,
+      price: `₦${naira.toLocaleString()}`,
+      sub: `${p.months} months · ₦${perMonth.toLocaleString()}/mo`,
+      tag: p.tag, highlight: p.highlighted,
+      features: p.features,
+      priceKobo: p.price_kobo,
+    }
+  })
+
+  const allCards = [trialCard, ...paidCards]
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
       {/* Nav */}
       <nav style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)', padding: '0.875rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link href="/">
-          <Image src="/logo.png" alt="Eventraka" width={120} height={32} unoptimized priority style={{ objectFit: 'contain' }} />
+        <Link href="/" style={{ textDecoration: 'none' }}>
+          <Logo size="sm" />
         </Link>
         <Link href="/app" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
           ← Back to app
@@ -219,7 +206,7 @@ function PricingContent() {
                       opacity: loadingPlan && loadingPlan !== card.id ? 0.5 : 1,
                     }}
                   >
-                    {isCurrent ? 'Current plan' : loadingPlan === card.id ? 'Redirecting…' : `Subscribe · ${(PLANS as Record<string, {display: string}>)[card.id]?.display}`}
+                    {isCurrent ? 'Current plan' : loadingPlan === card.id ? 'Redirecting…' : `Subscribe · ${card.price}`}
                   </button>
                 )}
               </div>
@@ -229,7 +216,7 @@ function PricingContent() {
 
         <p style={{ textAlign: 'center', marginTop: '2.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
           Payments processed securely by Paystack · Subscriptions do not auto-renew<br />
-          Questions? <a href="mailto:hello@eventraka.com" style={{ color: '#4f8ef7', textDecoration: 'none' }}>hello@eventraka.com</a>
+          Questions? <a href="mailto:hello@usetraka.com" style={{ color: '#4f8ef7', textDecoration: 'none' }}>hello@usetraka.com</a>
         </p>
       </div>
     </div>

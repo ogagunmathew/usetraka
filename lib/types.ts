@@ -45,3 +45,32 @@ export interface SearchFilters {
   budget?: string
   keywords?: string
 }
+
+export type OpportunityStatus = 'Saved' | 'Applied' | 'Considering' | 'Awarded' | 'Declined'
+
+export type OpportunityCategory = 'Grant' | 'Scholarship' | 'Incubator' | 'Accelerator' | 'Tender'
+
+export interface Opportunity {
+  id: string
+  user_id: string
+  title: string
+  category: OpportunityCategory
+  organiser: string | null
+  deadline: string | null
+  funding_amount: string | null
+  eligibility: string | null
+  description: string | null
+  application_url: string | null
+  country: string | null
+  status: OpportunityStatus
+  source: string
+  created_at: string
+  updated_at: string
+}
+
+export interface OpportunitySearchFilters {
+  categories?: OpportunityCategory[]
+  regions?: string[]
+  deadline?: 'thismonth' | 'next3months' | 'open'
+  keywords?: string
+}

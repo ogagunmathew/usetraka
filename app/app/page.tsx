@@ -1,22 +1,28 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
-import { Search, List, LogOut, User, Zap } from 'lucide-react'
+import { Search, List, LogOut, User, Zap, Globe } from 'lucide-react'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { Logo } from '@/components/ui/logo'
 import { Finder } from '@/components/sections/finder'
 import { Tracker } from '@/components/sections/tracker'
-import { LagosEvent } from '@/lib/types'
+import { OppFinder } from '@/components/sections/opp-finder'
+import { OppTracker } from '@/components/sections/opp-tracker'
+import { LagosEvent, Opportunity } from '@/lib/types'
 import { TRIAL_SEARCHES } from '@/lib/plans'
 
+type Module = 'events' | 'opportunities'
 type Tab = 'finder' | 'tracker'
 
 interface CurrentUser { id: string; email: string; name: string }
 interface PlanInfo { plan: string; status: string; daysLeft?: number; usage: { used: number; limit: number } }
 
 export default function Home() {
+  const [module, setModule] = useState<Module>('events')
   const [tab, setTab] = useState<Tab>('finder')
   const [trackerRefresh, setTrackerRefresh] = useState(0)
+  const [oppTrackerRefresh, setOppTrackerRefresh] = useState(0)
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null)
 
@@ -39,6 +45,20 @@ export default function Home() {
     }
   }
 
+  async function handleSaveOpp(opp: Opportunity) {
+    const res = await fetch('/api/opportunities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...opp, source: 'ai_search' }),
+    })
+    if (res.ok) {
+      setOppTrackerRefresh(n => n + 1)
+      alert(`"${opp.title}" saved to your tracker!`)
+    } else {
+      alert('Failed to save opportunity.')
+    }
+  }
+
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
     window.location.href = '/login'
@@ -53,7 +73,7 @@ export default function Home() {
       <header className="border-b px-6 py-3 flex items-center justify-between gap-3"
               style={{ borderColor: 'var(--border)', background: 'var(--surface)', boxShadow: '0 1px 0 rgba(79,142,247,0.08)' }}>
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="Eventraka" width={130} height={34} priority unoptimized style={{ objectFit: 'contain' }} />
+          <Logo size="md" />
           <span className="text-xs px-2 py-0.5 rounded-full hidden sm:inline-block"
                 style={{ background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}>
             Nigeria
@@ -62,6 +82,7 @@ export default function Home() {
 
         {currentUser && (
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {planInfo && (
               isTrial ? (
                 <Link href="/pricing"
@@ -98,23 +119,45 @@ export default function Home() {
         )}
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-5">
+
+        {/* Module toggle: Events | Opportunities */}
         <div className="flex gap-1 p-1 rounded-xl w-fit"
              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {([
-            { id: 'finder', label: 'Find Events', icon: Search },
-            { id: 'tracker', label: 'My Tracker', icon: List },
+            { id: 'events',        label: 'Events',        icon: Search },
+            { id: 'opportunities', label: 'Opportunities', icon: Globe },
           ] as const).map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => setTab(id)}
+            <button key={id} onClick={() => { setModule(id); setTab('finder') }}
               className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all"
-              style={tab === id ? { background: 'var(--accent)', color: '#fff' } : { color: 'var(--text-muted)' }}>
+              style={module === id ? { background: 'var(--accent)', color: '#fff' } : { color: 'var(--text-muted)' }}>
               <Icon size={15} /> {label}
             </button>
           ))}
         </div>
 
-        {tab === 'finder' && <Finder onSaveEvent={handleSaveEvent} />}
-        {tab === 'tracker' && <Tracker refreshKey={trackerRefresh} />}
+        {/* Sub-tabs: Finder | Tracker */}
+        <div className="flex gap-1 p-1 rounded-xl w-fit"
+             style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+          {([
+            { id: 'finder',  label: module === 'events' ? 'Find Events' : 'Find Opportunities', icon: Search },
+            { id: 'tracker', label: 'My Tracker', icon: List },
+          ] as const).map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => setTab(id)}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+              style={tab === id
+                ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }
+                : { color: 'var(--text-muted)' }}>
+              <Icon size={14} /> {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        {module === 'events' && tab === 'finder' && <Finder onSaveEvent={handleSaveEvent} />}
+        {module === 'events' && tab === 'tracker' && <Tracker refreshKey={trackerRefresh} />}
+        {module === 'opportunities' && tab === 'finder' && <OppFinder onSaveOpp={handleSaveOpp} />}
+        {module === 'opportunities' && tab === 'tracker' && <OppTracker refreshKey={oppTrackerRefresh} />}
       </div>
     </main>
   )

@@ -127,7 +127,7 @@ function VerifyShell({ children }: { children: React.ReactNode }) {
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(233,69,96,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(233,69,96,0.04) 1px,transparent 1px)', backgroundSize: '48px 48px', maskImage: 'radial-gradient(ellipse 80% 60% at 50% 50%,black 30%,transparent 100%)' }} aria-hidden />
       <div style={{ width: '100%', maxWidth: '400px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2.5rem 2rem', position: 'relative', boxShadow: '0 0 0 1px rgba(233,69,96,0.06),0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-          <Image src="/logo.png" alt="Eventraka" width={160} height={44} priority unoptimized style={{ objectFit: 'contain' }} />
+          <Image src="/logo.png" alt="Traka" width={160} height={44} priority unoptimized style={{ objectFit: 'contain' }} />
         </div>
         <div style={{ height: '1px', background: 'linear-gradient(90deg,transparent,var(--border),transparent)', marginBottom: '1.75rem' }} />
         {children}
