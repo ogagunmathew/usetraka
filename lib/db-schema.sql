@@ -145,6 +145,30 @@ CREATE TABLE IF NOT EXISTS opportunity_reminders (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ─── Event Pool (globally discovered, shared — no user_id) ──────────────────
+
+CREATE TABLE IF NOT EXISTS event_pool (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT        NOT NULL,
+  category    TEXT        NOT NULL DEFAULT 'Other',
+  city        TEXT,
+  event_date  DATE,
+  event_day   TEXT,
+  event_time  TEXT,
+  venue       TEXT,
+  area        TEXT,
+  organiser   TEXT,
+  cost        TEXT,
+  link        TEXT,
+  description TEXT,
+  source      TEXT        NOT NULL DEFAULT 'ai_discovery',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_pool_date ON event_pool(event_date);
+CREATE INDEX IF NOT EXISTS idx_event_pool_city ON event_pool(city);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_event_pool_dedup ON event_pool(lower(name), event_date);
+
 -- ─── Opportunity Pool (globally discovered, shared) ───────────────────────────
 
 CREATE TABLE IF NOT EXISTS opportunity_pool (
@@ -184,6 +208,30 @@ CREATE TABLE IF NOT EXISTS plan_config (
   tag         TEXT,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ─── v2 Migration: run this block in pgAdmin on your existing database ───────
+-- (Safe to re-run — all statements use IF NOT EXISTS)
+--
+-- CREATE TABLE IF NOT EXISTS event_pool (
+--   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name        TEXT        NOT NULL,
+--   category    TEXT        NOT NULL DEFAULT 'Other',
+--   city        TEXT,
+--   event_date  DATE,
+--   event_day   TEXT,
+--   event_time  TEXT,
+--   venue       TEXT,
+--   area        TEXT,
+--   organiser   TEXT,
+--   cost        TEXT,
+--   link        TEXT,
+--   description TEXT,
+--   source      TEXT        NOT NULL DEFAULT 'ai_discovery',
+--   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+-- CREATE INDEX IF NOT EXISTS idx_event_pool_date  ON event_pool(event_date);
+-- CREATE INDEX IF NOT EXISTS idx_event_pool_city  ON event_pool(city);
+-- CREATE UNIQUE INDEX IF NOT EXISTS idx_event_pool_dedup ON event_pool(lower(name), event_date);
 
 -- ─── Migrations: run these if upgrading an existing database ──────────────────
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified   BOOLEAN     NOT NULL DEFAULT false;

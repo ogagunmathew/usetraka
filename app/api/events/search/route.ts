@@ -7,7 +7,8 @@ import { TRIAL_SEARCHES, PAID_SEARCHES_PER_MONTH, getPlanStatus } from '@/lib/pl
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const CACHE_TTL_MINUTES = 60
+const CACHE_TTL_HOURS = 24
+const POOL_MIN_RESULTS = 5
 
 function buildCacheKey(filters: SearchFilters): string {
   const cats = [...(filters.categories || [])].sort().join(',')
@@ -80,6 +81,60 @@ Return ONLY a valid JSON array (no markdown, no extra text):
 ]`
 }
 
+async function queryEventPool(filters: SearchFilters): Promise<object[]> {
+  try {
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+
+    const end = new Date(now)
+    switch (filters.timeframe) {
+      case 'thismonth':  end.setMonth(end.getMonth() + 1, 0); break
+      case 'nextmonth':  end.setMonth(end.getMonth() + 2, 0); break
+      case '6months':    end.setMonth(end.getMonth() + 6);    break
+      default:           end.setMonth(end.getMonth() + 3);    break
+    }
+    const endDate = end.toISOString().split('T')[0]
+
+    const params: unknown[] = [today, endDate]
+    const conditions: string[] = [
+      'event_date IS NOT NULL',
+      'event_date >= $1',
+      'event_date <= $2',
+    ]
+
+    if (filters.categories?.length) {
+      params.push(filters.categories)
+      conditions.push(`category = ANY($${params.length})`)
+    }
+
+    if (filters.cities?.length) {
+      params.push(filters.cities)
+      conditions.push(`city = ANY($${params.length})`)
+    }
+
+    if (filters.keywords?.trim()) {
+      params.push(`%${filters.keywords.trim().toLowerCase()}%`)
+      const idx = params.length
+      conditions.push(`(LOWER(name) LIKE $${idx} OR LOWER(COALESCE(description, '')) LIKE $${idx})`)
+    }
+
+    const result = await pool.query(
+      `SELECT name, category, city,
+              to_char(event_date, 'YYYY-MM-DD') AS date,
+              event_day AS day, event_time AS time,
+              venue, area, organiser, cost, link, description
+       FROM event_pool
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY event_date ASC
+       LIMIT 20`,
+      params
+    )
+    return result.rows
+  } catch {
+    return []
+  }
+}
+
 export async function POST(req: NextRequest) {
   const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -88,10 +143,10 @@ export async function POST(req: NextRequest) {
     const filters: SearchFilters = await req.json()
     const cacheKey = buildCacheKey(filters)
 
-    // ── 1. Check cache ──────────────────────────────────────────────────────
+    // ── 1. Check cache (24h TTL) ─────────────────────────────────────────────
     const cached = await pool.query(
       `SELECT results FROM search_cache
-       WHERE filters_key = $1 AND created_at > now() - interval '${CACHE_TTL_MINUTES} minutes'`,
+       WHERE filters_key = $1 AND created_at > now() - interval '${CACHE_TTL_HOURS} hours'`,
       [cacheKey]
     )
 
@@ -121,18 +176,49 @@ export async function POST(req: NextRequest) {
         )
     const searchesUsed = parseInt(usageQuery.rows[0].count, 10)
 
+    // ── 3. Return from cache if hit ─────────────────────────────────────────
+    if ((cached.rowCount ?? 0) > 0) {
+      return NextResponse.json({
+        events: cached.rows[0].results,
+        cached: true,
+        usage: { used: searchesUsed, limit: searchLimit },
+      })
+    }
+
+    // ── 4. Query event pool (free, no quota) ────────────────────────────────
+    const poolEvents = await queryEventPool(filters)
+
+    if (poolEvents.length >= POOL_MIN_RESULTS) {
+      await pool.query(
+        `INSERT INTO search_cache (filters_key, results) VALUES ($1, $2)
+         ON CONFLICT (filters_key) DO UPDATE SET results = $2, created_at = now()`,
+        [cacheKey, JSON.stringify(poolEvents)]
+      )
+      return NextResponse.json({
+        events: poolEvents,
+        cached: false,
+        fromPool: true,
+        usage: { used: searchesUsed, limit: searchLimit },
+      })
+    }
+
+    // ── 5. Check quota before calling Claude ────────────────────────────────
     if (searchesUsed >= searchLimit) {
+      if (poolEvents.length > 0) {
+        return NextResponse.json({
+          events: poolEvents,
+          cached: false,
+          fromPool: true,
+          usage: { used: searchesUsed, limit: searchLimit },
+        })
+      }
       const message = isTrial
         ? `You've used all ${TRIAL_SEARCHES} trial searches. Upgrade to continue.`
         : `Monthly search limit reached (${PAID_SEARCHES_PER_MONTH}/month). Resets on the 1st.`
       return NextResponse.json({ error: message, upgradeRequired: isTrial }, { status: 429 })
     }
 
-    if ((cached.rowCount ?? 0) > 0) {
-      return NextResponse.json({ events: cached.rows[0].results, cached: true, usage: { used: searchesUsed, limit: searchLimit } })
-    }
-
-    // ── 3. Call Claude ──────────────────────────────────────────────────────
+    // ── 6. Call Claude (live AI search) ─────────────────────────────────────
     const prompt = buildPrompt(filters)
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
@@ -169,7 +255,7 @@ export async function POST(req: NextRequest) {
     const today = new Date().toISOString().split('T')[0]
     const futureEvents = events.filter((e) => !e.date || e.date >= today)
 
-    // ── 4. Store in cache + record usage ────────────────────────────────────
+    // ── 7. Cache results + record usage ─────────────────────────────────────
     await Promise.all([
       pool.query(
         `INSERT INTO search_cache (filters_key, results) VALUES ($1, $2)
@@ -182,6 +268,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       events: futureEvents,
       cached: false,
+      fromPool: false,
       usage: { used: searchesUsed + 1, limit: searchLimit },
     })
   } catch (err) {

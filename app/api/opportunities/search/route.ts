@@ -7,7 +7,8 @@ import { TRIAL_SEARCHES, PAID_SEARCHES_PER_MONTH, getPlanStatus } from '@/lib/pl
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const CACHE_TTL_MINUTES = 60
+const CACHE_TTL_HOURS = 24
+const POOL_MIN_RESULTS = 5
 
 function buildCacheKey(filters: OpportunitySearchFilters): string {
   const cats = [...(filters.categories || [])].sort().join(',')
@@ -77,6 +78,87 @@ Return ONLY a valid JSON array (no markdown, no extra text):
 ]`
 }
 
+async function queryOpportunityPool(filters: OpportunitySearchFilters): Promise<object[]> {
+  try {
+    const today = new Date().toISOString().split('T')[0]
+
+    const params: unknown[] = [today]
+    const conditions: string[] = ['(deadline IS NULL OR deadline >= $1)']
+
+    if (filters.categories?.length) {
+      params.push(filters.categories)
+      conditions.push(`category = ANY($${params.length})`)
+    }
+
+    if (filters.deadline && filters.deadline !== 'open') {
+      const now = new Date()
+      const deadlineEnd = new Date(now)
+      if (filters.deadline === 'thismonth') {
+        deadlineEnd.setMonth(deadlineEnd.getMonth() + 1, 0)
+      } else {
+        deadlineEnd.setMonth(deadlineEnd.getMonth() + 3)
+      }
+      params.push(deadlineEnd.toISOString().split('T')[0])
+      conditions.push(`(deadline IS NULL OR deadline <= $${params.length})`)
+    }
+
+    if (filters.keywords?.trim()) {
+      params.push(`%${filters.keywords.trim().toLowerCase()}%`)
+      const idx = params.length
+      conditions.push(
+        `(LOWER(title) LIKE $${idx} OR LOWER(COALESCE(description, '')) LIKE $${idx} OR LOWER(COALESCE(eligibility, '')) LIKE $${idx})`
+      )
+    }
+
+    // Loose region filter on country field
+    if (filters.regions?.length && filters.regions.length < 5) {
+      const regionClauses: string[] = []
+      for (const region of filters.regions) {
+        switch (region) {
+          case 'Nigeria':
+            regionClauses.push(`country ILIKE 'Nigeria'`)
+            break
+          case 'Global':
+            regionClauses.push(`country ILIKE 'Global'`)
+            break
+          case 'Africa':
+            regionClauses.push(
+              `(country IS NOT NULL AND country NOT ILIKE 'Global' AND country NOT ILIKE '%united states%' AND country NOT ILIKE '%canada%' AND country NOT ILIKE '%united kingdom%' AND country NOT ILIKE '%europe%' AND country NOT IN ('Germany','France','Netherlands','Sweden','Switzerland','Norway','Denmark','Finland','Belgium','Austria','Italy','Spain','Portugal'))`
+            )
+            break
+          case 'UK/Europe':
+            regionClauses.push(
+              `(country ILIKE '%united kingdom%' OR country ILIKE '%europe%' OR country IN ('Germany','France','Netherlands','Sweden','Switzerland','Norway','Denmark','Finland','Belgium','Austria','Italy','Spain','Portugal','UK'))`
+            )
+            break
+          case 'US/Canada':
+            regionClauses.push(
+              `(country ILIKE '%united states%' OR country IN ('USA','US','Canada'))`
+            )
+            break
+        }
+      }
+      if (regionClauses.length) {
+        conditions.push(`(${regionClauses.join(' OR ')})`)
+      }
+    }
+
+    const result = await pool.query(
+      `SELECT title, category, organiser,
+              to_char(deadline, 'YYYY-MM-DD') AS deadline,
+              funding_amount, eligibility, description, application_url, country
+       FROM opportunity_pool
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY deadline ASC NULLS LAST
+       LIMIT 20`,
+      params
+    )
+    return result.rows
+  } catch {
+    return []
+  }
+}
+
 export async function POST(req: NextRequest) {
   const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -85,14 +167,14 @@ export async function POST(req: NextRequest) {
     const filters: OpportunitySearchFilters = await req.json()
     const cacheKey = buildCacheKey(filters)
 
-    // ── 1. Check cache ──────────────────────────────────────────────────────
+    // ── 1. Check cache (24h TTL) ─────────────────────────────────────────────
     const cached = await pool.query(
       `SELECT results FROM search_cache
-       WHERE filters_key = $1 AND created_at > now() - interval '${CACHE_TTL_MINUTES} minutes'`,
+       WHERE filters_key = $1 AND created_at > now() - interval '${CACHE_TTL_HOURS} hours'`,
       [cacheKey]
     )
 
-    // ── 2. Check plan & limits (shared quota with event searches) ────────────
+    // ── 2. Check plan & limits ──────────────────────────────────────────────
     const planRow = await pool.query(
       'SELECT plan, plan_expires_at, trial_started_at FROM users WHERE id = $1',
       [user.id]
@@ -118,18 +200,49 @@ export async function POST(req: NextRequest) {
         )
     const searchesUsed = parseInt(usageQuery.rows[0].count, 10)
 
+    // ── 3. Return from cache if hit ─────────────────────────────────────────
+    if ((cached.rowCount ?? 0) > 0) {
+      return NextResponse.json({
+        opportunities: cached.rows[0].results,
+        cached: true,
+        usage: { used: searchesUsed, limit: searchLimit },
+      })
+    }
+
+    // ── 4. Query opportunity pool (free, no quota) ──────────────────────────
+    const poolOpps = await queryOpportunityPool(filters)
+
+    if (poolOpps.length >= POOL_MIN_RESULTS) {
+      await pool.query(
+        `INSERT INTO search_cache (filters_key, results) VALUES ($1, $2)
+         ON CONFLICT (filters_key) DO UPDATE SET results = $2, created_at = now()`,
+        [cacheKey, JSON.stringify(poolOpps)]
+      )
+      return NextResponse.json({
+        opportunities: poolOpps,
+        cached: false,
+        fromPool: true,
+        usage: { used: searchesUsed, limit: searchLimit },
+      })
+    }
+
+    // ── 5. Check quota before calling Claude ────────────────────────────────
     if (searchesUsed >= searchLimit) {
+      if (poolOpps.length > 0) {
+        return NextResponse.json({
+          opportunities: poolOpps,
+          cached: false,
+          fromPool: true,
+          usage: { used: searchesUsed, limit: searchLimit },
+        })
+      }
       const message = isTrial
         ? `You've used all ${TRIAL_SEARCHES} trial searches. Upgrade to continue.`
         : `Monthly search limit reached (${PAID_SEARCHES_PER_MONTH}/month). Resets on the 1st.`
       return NextResponse.json({ error: message, upgradeRequired: isTrial }, { status: 429 })
     }
 
-    if ((cached.rowCount ?? 0) > 0) {
-      return NextResponse.json({ opportunities: cached.rows[0].results, cached: true, usage: { used: searchesUsed, limit: searchLimit } })
-    }
-
-    // ── 3. Call Claude ──────────────────────────────────────────────────────
+    // ── 6. Call Claude (live AI search) ─────────────────────────────────────
     const prompt = buildPrompt(filters)
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
@@ -163,11 +276,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unexpected response format — please try again' }, { status: 502 })
     }
 
-    // Filter out any with past deadlines
     const today = new Date().toISOString().split('T')[0]
     const valid = opportunities.filter((o) => !o.deadline || o.deadline >= today)
 
-    // ── 4. Store in cache + record usage ────────────────────────────────────
+    // ── 7. Cache results + record usage ─────────────────────────────────────
     await Promise.all([
       pool.query(
         `INSERT INTO search_cache (filters_key, results) VALUES ($1, $2)
@@ -180,6 +292,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       opportunities: valid,
       cached: false,
+      fromPool: false,
       usage: { used: searchesUsed + 1, limit: searchLimit },
     })
   } catch (err) {

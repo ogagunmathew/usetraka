@@ -19,6 +19,11 @@ export async function GET(req: NextRequest) {
     const end = new Date(now)
     end.setMonth(end.getMonth() + 6)
 
+    // Remove expired opportunities (deadline passed more than 7 days ago)
+    await pool.query(
+      `DELETE FROM opportunity_pool WHERE deadline IS NOT NULL AND deadline < CURRENT_DATE - interval '7 days'`
+    )
+
     const prompt = `Today is ${fmt(now)} (${today}). You are building an intelligence feed for Nigerian professionals, founders, and students.
 
 Search the web for REAL, currently open opportunities that Nigerians are eligible for. Cover all five categories in roughly equal proportions:

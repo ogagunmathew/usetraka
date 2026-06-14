@@ -19,24 +19,47 @@ export async function GET(req: NextRequest) {
     const end = new Date(now)
     end.setMonth(end.getMonth() + 3)
 
+    // Remove pool events that are more than 7 days in the past
+    await pool.query(
+      `DELETE FROM event_pool WHERE event_date < CURRENT_DATE - interval '7 days'`
+    )
+
     const prompt = `Today's date is ${fmt(now)} (${today}).
 
-Search for professional events in Lagos, Nigeria from today until ${fmt(end)}.
-Focus on: tech, startups, investment, fintech, networking, leadership, product, policy, digital transformation.
-Target audience: tech leaders, startup founders, investors, digital transformation consultants, fintech professionals.
+Search for professional events across Nigeria's major cities from today until ${fmt(end)}.
 
-STRICT RULES — you must follow these exactly:
-1. Only include events with a CONFIRMED specific date — day, month, AND year all known. If the exact date is uncertain, skip the event entirely.
-2. Only include events happening AFTER today (${today}). Do NOT include past events.
-3. Dates MUST be in YYYY-MM-DD format (e.g. ${today}). Any other format is wrong.
-4. Return 10–15 events. If fewer confirmed upcoming events exist, return only those.
+Cities to cover: Lagos, Abuja, Port Harcourt, Kano, Abeokuta, Ilorin.
+Categories to use (pick the best fit for each event): Tech, Fintech, Creative, Tech Expo, Investments, Other.
+Focus: tech leaders, startup founders, investors, digital transformation consultants, fintech professionals.
+
+STRICT RULES — follow exactly:
+1. Only include events with a CONFIRMED specific date — day, month, AND year all known. Skip uncertain dates entirely.
+2. Only include events happening AFTER today (${today}). No past events.
+3. Dates MUST be in YYYY-MM-DD format (e.g. ${today}).
+4. Include the city for every event — must be one of: Lagos, Abuja, Port Harcourt, Kano, Abeokuta, Ilorin.
+5. Aim for 15–25 events spread across cities where possible.
 
 Return ONLY a valid JSON array (no markdown, no extra text):
-[{"name":"","category":"Tech/Startup|Investment|Networking|Leadership|Product/UX|Fintech|Policy|Tech/Policy|Other","date":"YYYY-MM-DD","day":"","time":"","venue":"","area":"","organiser":"","cost":"Free|₦X","link":"","description":""}]`
+[
+  {
+    "name": "Event Name",
+    "category": "Tech|Fintech|Creative|Tech Expo|Investments|Other",
+    "city": "Lagos",
+    "date": "YYYY-MM-DD",
+    "day": "Monday",
+    "time": "09:00 AM",
+    "venue": "Venue Name",
+    "area": "Victoria Island",
+    "organiser": "Organiser Name",
+    "cost": "Free | ₦15,000",
+    "link": "https://...",
+    "description": "1-2 sentence summary of what the event is about and who should attend."
+  }
+]`
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: 6144,
       tools: [{ type: 'web_search_20250305' as never, name: 'web_search' }],
       messages: [{ role: 'user', content: prompt }],
     })
@@ -49,6 +72,7 @@ Return ONLY a valid JSON array (no markdown, no extra text):
     const arrayStart = jsonText.indexOf('[')
     const arrayEnd = jsonText.lastIndexOf(']')
     if (arrayStart === -1 || arrayEnd === -1) throw new Error('No JSON array in Claude response')
+
     let events
     try {
       events = JSON.parse(jsonText.slice(arrayStart, arrayEnd + 1))
@@ -57,55 +81,64 @@ Return ONLY a valid JSON array (no markdown, no extra text):
     }
     if (!Array.isArray(events)) throw new Error('Claude response was not an array')
 
+    // Filter out past events
+    const futureEvents = events.filter((e) => e.date && e.date >= today)
+
     let newCount = 0
-    for (const event of events) {
+    for (const event of futureEvents) {
+      if (!event.name || !event.date) continue
+
       // Deduplicate by name + date
       const exists = await pool.query(
-        'SELECT id FROM events WHERE LOWER(name) = LOWER($1) AND event_date::text ILIKE $2',
-        [event.name, `%${event.date}%`]
+        'SELECT id FROM event_pool WHERE lower(name) = lower($1) AND event_date = $2::date',
+        [event.name, event.date]
       )
       if ((exists.rowCount ?? 0) > 0) continue
 
       await pool.query(
-        `INSERT INTO events (name, category, event_date, event_day, event_time, venue, area, organiser, cost, link, description, status, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'Interested','ai_search')`,
-        [event.name, event.category, event.date || null, event.day, event.time,
-         event.venue, event.area, event.organiser, event.cost, event.link, event.description]
+        `INSERT INTO event_pool (name, category, city, event_date, event_day, event_time, venue, area, organiser, cost, link, description)
+         VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [
+          event.name,
+          event.category || 'Other',
+          event.city || 'Lagos',
+          event.date,
+          event.day || null,
+          event.time || null,
+          event.venue || null,
+          event.area || null,
+          event.organiser || null,
+          event.cost || null,
+          event.link || null,
+          event.description || null,
+        ]
       )
       newCount++
     }
 
-    // Get upcoming events (next 14 days)
-    const upcoming = await pool.query(
-      `SELECT * FROM events WHERE event_date BETWEEN now() AND now() + interval '14 days' ORDER BY event_date ASC`
-    )
-    const registered = await pool.query(
-      `SELECT * FROM events WHERE status = 'Registered' ORDER BY event_date ASC`
-    )
-
-    // Send weekly digest email
+    // Weekly digest email
     if (process.env.RESEND_API_KEY && process.env.REMINDER_EMAIL) {
+      const upcoming = await pool.query(
+        `SELECT * FROM event_pool
+         WHERE event_date BETWEEN CURRENT_DATE AND CURRENT_DATE + interval '14 days'
+         ORDER BY event_date ASC`
+      )
       const upcomingHtml = upcoming.rows.map((e) =>
-        `<li><strong>${e.name}</strong> — ${e.event_date} at ${e.venue}, ${e.area} (${e.cost || 'TBC'}) [${e.status}]</li>`
-      ).join('')
-      const registeredHtml = registered.rows.map((e) =>
-        `<li><strong>${e.name}</strong> — ${e.event_date} | ${e.venue}</li>`
+        `<li><strong>${e.name}</strong> — ${e.event_date} | ${e.city} | ${e.venue || 'Venue TBC'} (${e.cost || 'TBC'})</li>`
       ).join('')
 
       await getResend().emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'reminders@ashiri.ng',
+        from: process.env.RESEND_FROM_EMAIL || 'reminders@usetraka.com',
         to: process.env.REMINDER_EMAIL,
         subject: `📅 Traka Weekly Events Digest — ${new Date().toDateString()}`,
         html: `<h2>Weekly Events Digest — Traka</h2>
-               <p><strong>${newCount} new events</strong> discovered this week.</p>
-               <h3>Upcoming (next 14 days)</h3>
-               <ul>${upcomingHtml || '<li>None</li>'}</ul>
-               <h3>You are Registered For</h3>
-               <ul>${registeredHtml || '<li>None</li>'}</ul>`,
+               <p><strong>${newCount} new events</strong> added to the discovery pool.</p>
+               <h3>Upcoming in the next 14 days</h3>
+               <ul>${upcomingHtml || '<li>None</li>'}</ul>`,
       }).catch(console.error)
     }
 
-    return NextResponse.json({ discovered: events.length, added: newCount })
+    return NextResponse.json({ discovered: futureEvents.length, added: newCount })
   } catch (err) {
     console.error('Cron error:', err)
     return NextResponse.json({ error: 'Cron job failed' }, { status: 500 })

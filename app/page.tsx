@@ -42,11 +42,41 @@ const FEATURES = [
   { icon: Calendar, title: 'Personal tracker', body: 'Save events and opportunities, update status, export to CSV, and add events to Google Calendar — all in one place.' },
 ]
 
+const PAID_FEATURES = [
+  'AI event search across 6 Nigerian cities',
+  'AI opportunity search — grants, scholarships, accelerators, tenders',
+  '100 searches/month (events + opportunities)',
+  'Personal tracker with status management',
+  '7-day email reminders before deadlines',
+  'CSV export · Google Calendar integration',
+]
+
 const PLANS_PREVIEW = [
-  { name: 'Free Trial', price: 'Free', sub: '7 days · 2 searches', green: true, cta: 'Start free', href: '/signup' },
-  { name: 'Starter', price: '₦4,500', sub: '3 months · ₦1,500/mo', green: false, cta: 'See plans', href: '/pricing' },
-  { name: 'Growth', price: '₦7,800', sub: '6 months · ₦1,300/mo', green: false, cta: 'See plans', href: '/pricing', popular: true },
-  { name: 'Annual', price: '₦13,200', sub: '12 months · ₦1,100/mo', green: false, cta: 'See plans', href: '/pricing' },
+  {
+    name: 'Free Trial', price: 'Free', sub: '7 days · 2 searches',
+    green: true, cta: 'Start free', href: '/signup',
+    features: [
+      'Events + Opportunities search',
+      '2 searches (events & opportunities)',
+      '7-day access · all features unlocked',
+      'No credit card required',
+    ],
+  },
+  {
+    name: 'Starter', price: '₦4,500', sub: '3 months · ₦1,500/mo',
+    green: false, cta: 'Get Starter', href: '/pricing',
+    features: PAID_FEATURES,
+  },
+  {
+    name: 'Growth', price: '₦7,800', sub: '6 months · ₦1,300/mo',
+    green: false, cta: 'Get Growth', href: '/pricing', popular: true,
+    features: [...PAID_FEATURES, 'Save 13% vs monthly rate'],
+  },
+  {
+    name: 'Annual', price: '₦13,200', sub: '12 months · ₦1,100/mo',
+    green: false, cta: 'Get Annual', href: '/pricing',
+    features: [...PAID_FEATURES, 'Best rate — save 27%'],
+  },
 ]
 
 export default function LandingPage() {
@@ -211,17 +241,18 @@ export default function LandingPage() {
       </section>
 
       {/* ── City strip ── */}
-      <div style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'var(--surface)', padding: '1rem 1.5rem', marginTop: '2rem' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <div style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'var(--surface)', padding: '0.875rem 1.5rem', marginTop: '2rem' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', opacity: 0.5, marginRight: '0.25rem' }}>
+            Covered cities
+          </span>
+          <span style={{ color: 'var(--border)', fontSize: '0.75rem', opacity: 0.4, marginRight: '0.25rem' }}>—</span>
           {['Lagos', 'Abuja', 'Port Harcourt', 'Kano', 'Abeokuta', 'Ilorin'].map((city, i, arr) => (
             <span key={city} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)' }}>{city}</span>
-              {i < arr.length - 1 && <span style={{ color: 'var(--border)', fontSize: '0.75rem' }}>·</span>}
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{city}</span>
+              {i < arr.length - 1 && <span style={{ color: 'var(--border)', fontSize: '0.75rem', opacity: 0.4 }}>·</span>}
             </span>
           ))}
-          <span style={{ marginLeft: '0.75rem', fontSize: '0.75rem', color: 'var(--accent)', background: 'var(--accent-dim)', border: '1px solid var(--accent-border)', padding: '0.2rem 0.6rem', borderRadius: '999px', fontWeight: 600 }}>
-            All covered
-          </span>
         </div>
       </div>
 
@@ -348,7 +379,15 @@ export default function LandingPage() {
                 <div style={{ fontSize: '1.875rem', fontWeight: 900, letterSpacing: '-0.03em', color: plan.green ? '#10b981' : 'var(--text)', lineHeight: 1.1, marginBottom: '0.375rem' }}>
                   {plan.price}
                 </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 1.25rem' }}>{plan.sub}</p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 1rem' }}>{plan.sub}</p>
+                <ul style={{ listStyle: 'none', margin: '0 0 1.25rem', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  {plan.features.map((f) => (
+                    <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                      <Check size={12} style={{ color: plan.green ? '#10b981' : '#4f8ef7', flexShrink: 0, marginTop: '2px' }} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
                 <Link href={plan.href} style={{
                   display: 'block', textAlign: 'center', padding: '0.55rem 0',
                   borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none',
@@ -404,6 +443,8 @@ export default function LandingPage() {
               { label: 'Pricing', href: '/pricing' },
               { label: 'Sign up', href: '/signup' },
               { label: 'Sign in', href: '/login' },
+              { label: 'Terms', href: '/terms' },
+              { label: 'Privacy', href: '/privacy' },
             ].map(l => (
               <Link key={l.label} href={l.href} style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
                 {l.label}
