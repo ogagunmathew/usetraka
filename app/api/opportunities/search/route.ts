@@ -243,58 +243,57 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 6. Call Claude (live AI search) ─────────────────────────────────────
-    const prompt = buildPrompt(filters)
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' } as never],
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    let jsonText = ''
-    for (const block of response.content) {
-      if (block.type === 'text') { jsonText = block.text; break }
-    }
-
-    jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const arrayStart = jsonText.indexOf('[')
-    const arrayEnd = jsonText.lastIndexOf(']')
-    if (arrayStart === -1 || arrayEnd === -1) {
-      console.error('No JSON array in Claude response:', jsonText)
-      return NextResponse.json({ error: 'No opportunities returned — try different filters or keywords' }, { status: 502 })
-    }
-
-    let opportunities
     try {
-      opportunities = JSON.parse(jsonText.slice(arrayStart, arrayEnd + 1))
-    } catch (parseErr) {
-      console.error('JSON parse failed:', parseErr)
-      return NextResponse.json({ error: 'Failed to parse opportunity data — please try again' }, { status: 502 })
+      const prompt = buildPrompt(filters)
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' } as never],
+        messages: [{ role: 'user', content: prompt }],
+      })
+
+      let jsonText = ''
+      for (const block of response.content) {
+        if (block.type === 'text') { jsonText = block.text; break }
+      }
+
+      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      const arrayStart = jsonText.indexOf('[')
+      const arrayEnd = jsonText.lastIndexOf(']')
+      if (arrayStart === -1 || arrayEnd === -1) throw new Error('No JSON array in Claude response')
+
+      const opportunities = JSON.parse(jsonText.slice(arrayStart, arrayEnd + 1))
+      if (!Array.isArray(opportunities)) throw new Error('Response was not an array')
+
+      const today = new Date().toISOString().split('T')[0]
+      const valid = opportunities.filter((o) => !o.deadline || o.deadline >= today)
+
+      // ── 7. Cache results + record usage ───────────────────────────────────
+      await Promise.all([
+        pool.query(
+          `INSERT INTO search_cache (filters_key, results) VALUES ($1, $2)
+           ON CONFLICT (filters_key) DO UPDATE SET results = $2, created_at = now()`,
+          [cacheKey, JSON.stringify(valid)]
+        ),
+        pool.query('INSERT INTO search_usage (user_id) VALUES ($1)', [user.id]),
+      ])
+
+      return NextResponse.json({
+        opportunities: valid,
+        cached: false,
+        fromPool: false,
+        usage: { used: searchesUsed + 1, limit: searchLimit },
+      })
+    } catch (aiErr) {
+      console.error('Claude opportunity search error:', aiErr)
+      // Fall back to whatever the pool has rather than returning an error
+      return NextResponse.json({
+        opportunities: poolOpps,
+        cached: false,
+        fromPool: true,
+        usage: { used: searchesUsed, limit: searchLimit },
+      })
     }
-
-    if (!Array.isArray(opportunities)) {
-      return NextResponse.json({ error: 'Unexpected response format — please try again' }, { status: 502 })
-    }
-
-    const today = new Date().toISOString().split('T')[0]
-    const valid = opportunities.filter((o) => !o.deadline || o.deadline >= today)
-
-    // ── 7. Cache results + record usage ─────────────────────────────────────
-    await Promise.all([
-      pool.query(
-        `INSERT INTO search_cache (filters_key, results) VALUES ($1, $2)
-         ON CONFLICT (filters_key) DO UPDATE SET results = $2, created_at = now()`,
-        [cacheKey, JSON.stringify(valid)]
-      ),
-      pool.query('INSERT INTO search_usage (user_id) VALUES ($1)', [user.id]),
-    ])
-
-    return NextResponse.json({
-      opportunities: valid,
-      cached: false,
-      fromPool: false,
-      usage: { used: searchesUsed + 1, limit: searchLimit },
-    })
   } catch (err) {
     console.error('Opportunity search error:', err)
     return NextResponse.json({ error: 'Search failed' }, { status: 500 })
