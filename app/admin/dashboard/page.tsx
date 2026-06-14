@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Users, TrendingUp, Search, AlertTriangle, Activity } from 'lucide-react'
+import { Users, TrendingUp, Search, AlertTriangle, Activity, Zap } from 'lucide-react'
 
 interface Stats {
   overview: { totalUsers: number; verified: number; newThisWeek: number; newThisMonth: number; activeTrials: number; activePaid: number; expired: number; expiringTrials: number }
@@ -84,9 +84,38 @@ function PlanRing({ starter, growth, annual }: { starter: number; growth: number
   )
 }
 
+type CronState = 'idle' | 'running' | 'done' | 'error'
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [status, setStatus] = useState<'loading' | 'error' | 'ok'>('loading')
+  const [cronEvents, setCronEvents] = useState<CronState>('idle')
+  const [cronOpps, setCronOpps] = useState<CronState>('idle')
+  const [cronResult, setCronResult] = useState<string>('')
+
+  async function runCron(type: 'events' | 'opportunities') {
+    const setter = type === 'events' ? setCronEvents : setCronOpps
+    setter('running')
+    setCronResult('')
+    try {
+      const res = await fetch('/api/admin/run-cron', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setter('error')
+        setCronResult(data.error || 'Failed')
+      } else {
+        setter('done')
+        setCronResult(`${type === 'events' ? 'Events' : 'Opportunities'}: ${data.added ?? 0} added (${data.discovered ?? 0} discovered)`)
+      }
+    } catch {
+      setter('error')
+      setCronResult('Network error')
+    }
+  }
 
   useEffect(() => {
     fetch('/api/admin/stats')
@@ -207,6 +236,36 @@ export default function DashboardPage() {
               <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.04em', color }}>{value}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Discovery */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>Discovery pool</p>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <Zap size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+          <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-muted)', flex: 1, minWidth: '200px' }}>
+            Trigger AI discovery to populate the event and opportunity pools. Each run takes ~30–60 seconds.
+          </p>
+          {cronResult && (
+            <span style={{ fontSize: '0.75rem', color: cronResult.includes('error') || cronResult.includes('Failed') ? '#f87171' : '#10b981', fontWeight: 600 }}>
+              {cronResult}
+            </span>
+          )}
+          <button
+            onClick={() => runCron('events')}
+            disabled={cronEvents === 'running'}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: cronEvents === 'running' ? 'var(--border)' : 'var(--accent)', color: cronEvents === 'running' ? 'var(--text-muted)' : '#fff', fontSize: '0.8125rem', fontWeight: 600, cursor: cronEvents === 'running' ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+          >
+            {cronEvents === 'running' ? 'Running…' : cronEvents === 'done' ? 'Events ✓' : 'Run Events'}
+          </button>
+          <button
+            onClick={() => runCron('opportunities')}
+            disabled={cronOpps === 'running'}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: cronOpps === 'running' ? 'var(--border)' : 'var(--accent)', color: cronOpps === 'running' ? 'var(--text-muted)' : '#fff', fontSize: '0.8125rem', fontWeight: 600, cursor: cronOpps === 'running' ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+          >
+            {cronOpps === 'running' ? 'Running…' : cronOpps === 'done' ? 'Opportunities ✓' : 'Run Opportunities'}
+          </button>
         </div>
       </div>
 
