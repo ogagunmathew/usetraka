@@ -106,7 +106,7 @@ export default function DashboardPage() {
       const data = await res.json()
       if (!res.ok) {
         setter('error')
-        setCronResult(data.error || 'Failed')
+        setCronResult(data.detail || data.error || 'Failed')
       } else {
         setter('done')
         setCronResult(`${type === 'events' ? 'Events' : 'Opportunities'}: ${data.added ?? 0} added (${data.discovered ?? 0} discovered)`)

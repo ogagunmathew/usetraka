@@ -140,7 +140,8 @@ Return ONLY a valid JSON array (no markdown, no extra text):
 
     return NextResponse.json({ discovered: futureEvents.length, added: newCount })
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
     console.error('Cron error:', err)
-    return NextResponse.json({ error: 'Cron job failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Cron job failed', detail: msg }, { status: 500 })
   }
 }
